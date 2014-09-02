@@ -100,7 +100,10 @@
         </header>
             
         <section id="main" class="eleven columns">
-            (Displays feeds and threads.)
+            <ul id="chats"></ul>
+            <form action="">
+                <input id="m" autocomplete="off" /><button>Send</button>
+            </form>
         </section>
     </div>
 </div>
@@ -134,6 +137,43 @@
         console.log('changing state');
       }
     });
+
+</script>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+  var socket = io();
+  var pseudo = prompt('Username', Date.now());
+
+  function appendMessage(name, msg) {
+    $('#chats').append($('<li>').text(name + ': ' + msg));
+  }
+  
+  function setPseudo(pseudo) {
+      console.log('setting pesudo to '+pseudo);
+      socket.emit('setPseudo', pseudo);
+  }
+  
+  // start with something
+  setPseudo(pseudo);
+  
+  $('form').submit(function(){
+    var data = {
+      'uid': pseudo+Date.now(),
+      'message': $('#m').val()
+    };
+    socket.emit('message', data);
+    $('#m').val('');
+    return false;
+  });
+  
+  socket.on('message', function(data){
+    appendMessage(data.pseudo, data.message);
+  });
+  
+  socket.on('raw', function(data){
+    console.log(data);
+  });
 
 </script>
 
