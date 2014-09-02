@@ -46,12 +46,14 @@ io.on('connection', function(socket){
         socket.pseudo = data;
     });
     
-    socket.on('message', function(data){
+    socket.on('message', function(data, callback){
         // inject pseudo and pass to other users
         data.pseudo = socket.pseudo;
         
         socket.broadcast.emit('message', data);
         console.log("user " + data.pseudo + " sent message: " + data.message);
+        
+        callback(data);
     });
     
     socket.on('disconnect', function(){

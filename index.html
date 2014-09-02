@@ -162,7 +162,10 @@
       'uid': pseudo+Date.now(),
       'message': $('#m').val()
     };
-    socket.emit('message', data);
+    socket.emit('message', data, function(data) {
+        // on success, we inject the message
+        appendMessage(data.pseudo, data.message)
+    });
     $('#m').val('');
     return false;
   });
