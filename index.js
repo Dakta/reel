@@ -1,7 +1,16 @@
 var express = require('express');
 var app = express();
-var http = require('http').Server(app);
-var io = require('socket.io')(http);
+// var http = require('http').Server(app);
+
+
+var port = process.env.port || 5000;
+
+var server = app.listen(port, function(){
+    console.log('listening on '+port);
+});
+
+var io = require('socket.io').listen(server);
+
 
 
 // express config
@@ -72,11 +81,13 @@ newUser.save(function(err) {
 
 
 // express routing
-app.get('/', function(req, res){
+app.get('/', function(req, res) {
+    console.log('got /');
     res.sendfile('index.html');
 });
 
 app.get('/users/:userid/:username?', function(req, res) {
+
     console.log(req.params);
     res.sendfile('index.html');
 });
@@ -122,9 +133,5 @@ io.on('connection', function(socket){
     
 });
 
-var port = process.env.port || 5000;
 
-http.listen(port, function(){
-    console.log('listening on '+port);
-});
 
