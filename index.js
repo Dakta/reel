@@ -3,9 +3,9 @@ var app = express();
 // var http = require('http').Server(app);
 
 
-var port = process.env.port || 3000;
+app.set('port', (process.env.PORT || 5000))
 
-var server = app.listen(port, function(){
+var server = app.listen(app.get('port'), function(){
     console.log('listening on '+port);
 });
 
