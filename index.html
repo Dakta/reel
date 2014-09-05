@@ -148,23 +148,15 @@
   function appendMessage(name, msg) {
     $('#chats').append($('<li>').text(name + ': ' + msg));
   }
-  
-  function setPseudo(pseudo) {
-      console.log('setting pesudo to '+pseudo);
-      socket.emit('setPseudo', pseudo);
-  }
-  
-  // start with something
-  setPseudo(pseudo);
-  
+    
   $('form').submit(function(){
     var data = {
-      'uid': pseudo+Date.now(),
+      'uid': Date.now(),
       'message': $('#m').val()
     };
     socket.emit('message', data, function(data) {
         // on success, we inject the message
-        appendMessage(data.pseudo, data.message)
+        appendMessage(data.name, data.message)
     });
     $('#m').val('');
     return false;
