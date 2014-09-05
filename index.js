@@ -304,33 +304,25 @@ io.use(passportSocketIo.authorize({
   store:       redisStore
 }));
 
+// list of online users
+var users = {};
 
 // connect
 io.on('connection', function(socket){
     console.log('a user connected');
-    console.log(socket.request.user);
-    
 
-/*
-    collection.findOne({hello:'world_safe2'}, function(err, item) {
-        console.log(item);
-        socket.emit('raw', item);
-    });
-*/
-
-    Profile.find({}).exec(function(err, res) {
-        if (!err) {
-            socket.emit('raw', res);
-        } else {
-            console.log('fail: '+err);
-        }
-    });
+    // add user to connected list
+    users[socket.request.user._id] = socket.request.user;
     
-    socket.pseudo = socket.request.user.display_name;
+    // tell our user their own name (yeah)
+    socket.emit('set_self', socket.request.user);
+    
+    // update online list for everyone
+    io.sockets.emit('userlist', { online: users });
     
     socket.on('message', function(data, callback) {
         // inject pseudo and pass to other users
-        data.pseudo = socket.pseudo;
+        data.pseudo = socket.request.user.display_name;
         
         socket.broadcast.emit('message', data);
         console.log("user " + data.pseudo + " sent message: " + data.message);
@@ -339,7 +331,13 @@ io.on('connection', function(socket){
     });
     
     socket.on('disconnect', function() {
-        console.log(socket.pesudo+' disconnected');
+        console.log(socket.request.user.display_name+' disconnected');
+
+        // remove from online list
+        delete users[socket.request.user._id];
+        
+        // update online list for everyone
+        io.sockets.emit('userlist', { online: users });
     });
     
 });
