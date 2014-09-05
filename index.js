@@ -190,7 +190,7 @@ var io = require('socket.io').listen(server);
 
 
 // express routing
-app.get('/', function(req, res) {
+app.get('/', ensureAuthenticated, function(req, res) {
     console.log('got /');
     res.sendfile('index.html');
 });
@@ -257,8 +257,8 @@ app.get('/users/:userid/:username?', function(req, res) {
 
 
 app.get('/auth/twitter', passport.authenticate('twitter'), function(req, res) {});
-app.get('/auth/twitter/callback', passport.authenticate('twitter', { failureRedirect: '/' }), function(req, res) {
-    res.redirect('/account');
+app.get('/auth/twitter/callback', passport.authenticate('twitter', { failureRedirect: '/failed' }), function(req, res) {
+    res.redirect('/');
 });
 
 app.get('/auth/logout', ensureAuthenticated, function(req, res) {
@@ -347,6 +347,6 @@ io.on('connection', function(socket){
 function ensureAuthenticated(req, res, next) {
     if (req.isAuthenticated()) { return next(); }
     
-    res.redirect('/')
+    res.redirect('/auth/twitter')
 }
 
