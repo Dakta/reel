@@ -6,6 +6,7 @@ var redisConfig = require('./redis.js');
 var passport = require('passport');
 var passportSocketIo = require("passport.socketio");
 var TwitterStrategy = require('passport-twitter').Strategy;
+var FacebookStrategy = require('passport-facebook').Strategy;
 
 // simpleflake for UID generation (profiles, content)
 var flake = require('simpleflake');
@@ -122,7 +123,65 @@ passport.use(
                         // make them a profile
                         console.log("saving user ...");
                         var site_profile = new Profile({
-                            display_name: profile.displayName
+                            display_name: profile.displayName,
+                        });
+                        site_profile.accounts.push(account._id); // attach the access account we just created to this "user account" aka profile
+                        site_profile.save(function(err) {
+                            if (err) { console.log(err); }
+                            done(null, site_profile); // pass site_profile back to serializeUser
+                        })
+                    }
+                });
+            };
+        });
+    }
+));
+passport.use(
+    new FacebookStrategy({
+        clientID: config.facebook.clientID,
+        clientSecret: config.facebook.clientSecret,
+        callbackURL: config.facebook.callbackURL
+    },
+    function (accessToken, refreshToken, profile, done) {
+        Account.findOne({ provider: 'facebook', provider_id: profile.id }, function(err, account) {
+            if (err) { console.log('Account.findOne', err); }
+            if (!err && account != null) {
+                console.log('account', account);
+                Profile.findOne({ accounts: account._id }, function(err, site_profile) {
+                    if (err) { console.log('Profile.findOne', err); }
+                    if (!err && profile != null) {
+                        console.log('found profile');
+                        done(null, site_profile); // pass site_profile back to serializeUser
+                    } else {
+                        // shit? (account with no profile) make them try again
+                        var error_msg = 'err: found account without profile; aborting';
+                        console.log(error_msg);
+                        Account.remove({ _id: account._id }, function(err) {
+                            if (err) {
+                                console.log('Account.remove', err);
+                            } else {
+                                console.log('deleted '+account.provider+' account '+account.provider_id);
+                            }
+                            done(error_msg);
+                        });
+                    }
+                });
+            } else {
+                console.log('new user');
+                // new user!
+                var account = new Account({
+                    provider: 'facebook',
+                    provider_id: profile.id,
+                    created: Date.now()
+                });
+                account.save(function(err) {
+                    if (err) {
+                        console.log('Account.save', err);
+                    } else {
+                        // make them a profile
+                        console.log("saving user ...");
+                        var site_profile = new Profile({
+                            display_name: profile.displayName,
                         });
                         site_profile.accounts.push(account._id); // attach the access account we just created to this "user account" aka profile
                         site_profile.save(function(err) {
@@ -153,6 +212,14 @@ var sessionMiddleware = expressSession({
     secret: 'my_precious',
     cookieParser: express.cookieParser
 });
+
+
+// test authentication
+function ensureAuthenticated(req, res, next) {
+    if (req.isAuthenticated()) { return next(); }
+    
+    res.redirect('/auth')
+}
 
 
 // express config
@@ -207,7 +274,7 @@ app.get('/account', ensureAuthenticated, function(req, res) {
 
 
 
-app.get('/users', function(req, res) {
+app.get('/users', ensureAuthenticated, function(req, res) {
     console.log(req.params);
     
     var params = {};
@@ -241,7 +308,7 @@ app.get('/users', function(req, res) {
 
 
 // profile
-app.get('/users/:userid/:username?', function(req, res) {
+app.get('/users/:userid/:username?', ensureAuthenticated, function(req, res) {
 
     console.log(req.params);
 
@@ -255,9 +322,16 @@ app.get('/users/:userid/:username?', function(req, res) {
 /*     res.sendfile('index.html'); */
 });
 
+app.get('/auth', function(req, res) {
+    res.send('<html><a href="/auth/twitter">Twitter</a> or <a href="/auth/facebook">Facebook</a> or <a href="/auth/logout">log out</a>.</html>');
+});
 
 app.get('/auth/twitter', passport.authenticate('twitter'), function(req, res) {});
 app.get('/auth/twitter/callback', passport.authenticate('twitter', { failureRedirect: '/failed' }), function(req, res) {
+    res.redirect('/');
+});
+app.get('/auth/facebook', passport.authenticate('facebook'), function(req, res) {});
+app.get('/auth/facebook/callback', passport.authenticate('facebook', { failureRedirect: '/failed' }), function(req, res) {
     res.redirect('/');
 });
 
@@ -342,11 +416,4 @@ io.on('connection', function(socket){
     
 });
 
-
-// test authentication
-function ensureAuthenticated(req, res, next) {
-    if (req.isAuthenticated()) { return next(); }
-    
-    res.redirect('/auth/twitter')
-}
 
