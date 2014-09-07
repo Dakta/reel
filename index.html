@@ -148,7 +148,7 @@
   var profile = {};
 
   function appendMessage(name, msg) {
-    $('#chats').append($('<li>').text(name + ': ' + msg));
+    return $('<li>').addClass('unconfirmed').text(name + ': ' + msg).appendTo($('#chats'));
   }
     
   $('form').submit(function(){
@@ -156,9 +156,14 @@
       'uid': Date.now(),
       'message': $('#m').val()
     };
-    socket.emit('message', data, function(data) {
-        // on success, we inject the message
-        appendMessage(data.pseudo, data.message)
+
+    // inject the message, but mark it as unconfirmed and keep track of it
+    // in case we have high latency
+    var $msgline = appendMessage(profile.display_name, data.message);
+    
+    socket.emit('message', data, function(response) {
+        // on success, we unhide the message
+        $msgline.removeClass('unconfirmed');
     });
     $('#m').val('');
     return false;
@@ -169,15 +174,34 @@
   });
   
   socket.on('userlist', function(userlist) {
-      $('#userlist').text(JSON.stringify(userlist, undefined, 2));
+      var $messages = $('#messages ul');
+      
+      // let's just redraw everything
+      $messages.empty();
+      
+      // rebuild
+      $.each(userlist, function(status, users) {
+          var $status = $('<li><h1>'+status+'</h1></li>').appendTo($messages);
+          var $listed = $('<ul>').appendTo($status);
+          $.each(users, function(id, user) {
+              $('\
+                    <li>\
+                        <span class="status '+status+'"></span>\
+                        <img class="avatar" src="'+user.avatar_url+'" />\
+                        <span class="name">'+user.display_name+'</span>\
+                    </li>').appendTo($listed);
+          });
+      });
+      // for debug
+/*       $('#userlist').text(JSON.stringify(userlist, undefined, 2)); */
   });
   
   socket.on('message', function(data){
-    appendMessage(data.pseudo, data.message);
+      appendMessage(data.pseudo, data.message);
   });
   
   socket.on('raw', function(data){
-    console.log(data);
+      console.log(data);
   });
 
 </script>

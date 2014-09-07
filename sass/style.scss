@@ -53,6 +53,10 @@ body {
     visibility: hidden;
 }
 
+.unconfirmed {
+    opacity: 0.5;
+}
+
 #content {
     background-color: $sb-babyblue;
     z-index: 0;
@@ -155,6 +159,9 @@ body {
     border-bottom: 1px solid $sb-grey;
     /* margin-bottom: 4px; */
     width: 118px;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    overflow: hidden; /* has to be set otherwise text-overflow doesn't work */
     padding-bottom: 4px;
     font-size: 16px;
     position:  absolute;

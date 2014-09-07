@@ -45,7 +45,9 @@ var Account = mongoose.model('Account', accountSchema);
 var profileSchema = new mongoose.Schema({
 /*     uid: { type: String, default: flakeGen }, // we generate this with simpleflake, conv buffer to base58 string */
     display_name: String, // for now, we're not picky
-    accounts: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Account' }]
+    avatar_url: String,
+    accounts: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Account' }],
+    provider_profile: Object
 });
 // pagination defaults
 profileSchema.plugin(paginator, {
@@ -124,6 +126,8 @@ passport.use(
                         console.log("saving user ...");
                         var site_profile = new Profile({
                             display_name: profile.displayName,
+                            avatar_url: profile._json.profile_image_url,
+                            provider_profile: profile
                         });
                         site_profile.accounts.push(account._id); // attach the access account we just created to this "user account" aka profile
                         site_profile.save(function(err) {
@@ -182,6 +186,8 @@ passport.use(
                         console.log("saving user ...");
                         var site_profile = new Profile({
                             display_name: profile.displayName,
+                            avatar_url: "http://graph.facebook.com/"+profile.id+"/picture",
+                            provider_profile: profile
                         });
                         site_profile.accounts.push(account._id); // attach the access account we just created to this "user account" aka profile
                         site_profile.save(function(err) {
@@ -401,6 +407,7 @@ io.on('connection', function(socket){
         socket.broadcast.emit('message', data);
         console.log("user " + data.pseudo + " sent message: " + data.message);
         
+/*         setTimeout(callback(data), 2000); */
         callback(data);
     });
     
