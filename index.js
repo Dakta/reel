@@ -397,7 +397,6 @@ io.on('connection', function(socket){
     
     // tell our user their own name (yeah)
     socket.emit('set_self', socket.request.user);
-    socket.emit('msg', { uid: Date.now(), message: 'foo', display_name: 'System' });
     
     // update online list for everyone
     function emitUserlist() {

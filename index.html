@@ -215,7 +215,7 @@
     Reel.Message = Ember.Object.extend(Reel.Serializable, {
 /*
         'uid': null,
-        'hidden': true, // hide to begin with, until we confirm
+        'unconfirmed': true, // hide to begin with, until we confirm
         'display_name': null,
         'message': null
 */
@@ -243,39 +243,17 @@
                   'display_name': this.profile.display_name,
                   'message': message
                 });
-            
-                // inject the message, but mark it as unconfirmed and keep track of it
-                // in case we have high latency
-/*                 var $msgline = appendMessage(profile.display_name, data.message); */
                 
                 this.messages.pushObject(data)
-/*                 this.messages.set(data.uid, data); */
-                var that = this;
-
-/*                 data.set('hidden', null); */
                 
                 this.socket.emit('msg', data, function(response) {
-/*                     var $msgline = appendMessage(profile.display_name, data.message); */
-/*                     console.log(that.messages.findBy('uid', response.uid)); // .set('hidden', false); */
                     data.set('unconfirmed', false);
                     console.log('response!', response);
                 });
                 
                 // clear text input
-                this.set('last_message', '');
-                
-/*
-                this.socket.emit('message', data, function(response) {
-                    // on success, we unhide the message
-                    that.messages.replace(messages.findBy('uid', data.uid), data);
-                });
-*/
-            },
-/*
-            updateLastMsg: function(message) {
-                this.set('lastMsg', message);
-            },
-*/
+                this.set('lastMsg', '');
+                },
         },
 
         /**
@@ -283,9 +261,6 @@
          * @type {Object}
          */
         sockets: {
-
-            // Update the property from the data received.
-//            cherryPickedName: ['name', 'age'],
 
             // Update the property using a callback.
             userlist: function(userlist) {
@@ -297,7 +272,6 @@
             msg: function(data) {
                 console.log('got message', data);
                 this.messages.pushObject(Reel.Message.create(data));
-/*                 this.messages.set(data.uid, data); */
             },
 
             set_self: function(prof) {
@@ -340,75 +314,6 @@
 
 </script>
 
-<script>
-
-/*
-  var socket = io();
-
-  var profile = {};
-
-  function appendMessage(name, msg) {
-    return $('<li>').addClass('unconfirmed').text(name + ': ' + msg).appendTo($('#chats'));
-  }
-    
-  $('form').submit(function(){
-    var data = {
-      'uid': Date.now(),
-      'message': $('#m').val()
-    };
-
-    // inject the message, but mark it as unconfirmed and keep track of it
-    // in case we have high latency
-    var $msgline = appendMessage(profile.display_name, data.message);
-    
-    socket.emit('message', data, function(response) {
-        // on success, we unhide the message
-        $msgline.removeClass('unconfirmed');
-    });
-    $('#m').val('');
-    return false;
-  });
-  
-  socket.on('set_self', function(prof) {
-      profile = prof;
-  });
-
-
-  socket.on('userlist', function(userlist) {
-      var $messages = $('#messages ul');
-      
-      // let's just redraw everything
-      $messages.empty();
-      
-      // rebuild
-      $.each(userlist, function(status, users) {
-          var $status = $('<li><h1>'+status+'</h1></li>').appendTo($messages);
-          var $listed = $('<ul>').appendTo($status);
-          $.each(users, function(id, user) {
-              $('\
-                    <li>\
-                        <span class="status '+status+'"></span>\
-                        <img class="avatar" src="'+user.avatar_url+'" />\
-                        <span class="name">'+user.display_name+'</span>\
-                    </li>').appendTo($listed);
-          });
-      });
-      // for debug
-      $('#userlist').text(JSON.stringify(userlist, undefined, 2));
-  });
-  
-
-  socket.on('message', function(data){
-      appendMessage(data.pseudo, data.message);
-  });
-  
-  socket.on('raw', function(data){
-      console.log(data);
-  });
-
-*/
-
-</script>
 
 </body>
 </html>
