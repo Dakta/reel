@@ -257,7 +257,7 @@
                 this.socket.emit('msg', data, function(response) {
 /*                     var $msgline = appendMessage(profile.display_name, data.message); */
 /*                     console.log(that.messages.findBy('uid', response.uid)); // .set('hidden', false); */
-/*                     data.set('unconfirmed', false); */
+                    data.set('unconfirmed', false);
                     console.log('response!', response);
                 });
                 

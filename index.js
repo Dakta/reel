@@ -409,6 +409,7 @@ io.on('connection', function(socket){
         // make sure we've set our real name
         // don't trust the incoming display_name, it's just there for convenience on the client-side
         data.display_name = socket.request.user.display_name;
+        delete data.unconfirmed; // this should really be removed before it gets to the server, since it's client-specific...
         
         socket.broadcast.emit('msg', data);
         console.log("user " + socket.request.user.display_name + " sent message: " + data.message);
