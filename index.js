@@ -62,11 +62,11 @@ var Profile = mongoose.model('Profile', profileSchema);
 // passport config
 // serialize and deserialize
 passport.serializeUser(function(user, done) {
-    console.log('serializeUser: ' + user._id)
+/*     console.log('serializeUser: ' + user._id) */
     done(null, user._id);
 });
 passport.deserializeUser(function(id, done) {
-    console.log('deserializing '+id);
+/*     console.log('deserializing '+id); */
     
     Profile.findById(new mongoose.Types.ObjectId(id), function(err, user){
         console.log('deserialize', user);
@@ -249,7 +249,7 @@ app.configure(function() {
     app.use('/css', express.static(__dirname + '/static/css'));
     app.use('/js', express.static(__dirname + '/static/js'));
     app.use('/img', express.static(__dirname + '/static/img'));
-    app.use('/js/libs', express.static(__dirname + '/bower_components'));
+    app.use('/js/vendor', express.static(__dirname + '/bower_components'));
 });
 
 
@@ -385,40 +385,52 @@ io.use(passportSocketIo.authorize({
 }));
 
 // list of online users
-var users = {};
+var users = [];
 
 // connect
 io.on('connection', function(socket){
     console.log('a user connected');
 
     // add user to connected list
-    users[socket.request.user._id] = socket.request.user;
+/*     users[socket.request.user._id] = socket.request.user; */
+    users.push(socket.request.user);
     
     // tell our user their own name (yeah)
     socket.emit('set_self', socket.request.user);
+    socket.emit('msg', { uid: Date.now(), message: 'foo', display_name: 'System' });
     
     // update online list for everyone
-    io.sockets.emit('userlist', { online: users });
+    function emitUserlist() {
+        io.sockets.emit('userlist', [ { name: 'Online', data: users} ]);
+    }
+    emitUserlist();
     
-    socket.on('message', function(data, callback) {
-        // inject pseudo and pass to other users
-        data.pseudo = socket.request.user.display_name;
+    socket.on('msg', function(data, callback) {
+        // make sure we've set our real name
+        // don't trust the incoming display_name, it's just there for convenience on the client-side
+        data.display_name = socket.request.user.display_name;
         
-        socket.broadcast.emit('message', data);
-        console.log("user " + data.pseudo + " sent message: " + data.message);
+        socket.broadcast.emit('msg', data);
+        console.log("user " + socket.request.user.display_name + " sent message: " + data.message);
         
 /*         setTimeout(callback(data), 2000); */
-        callback(data);
+        if (callback !== undefined) {
+            callback(data);
+        }
     });
     
     socket.on('disconnect', function() {
         console.log(socket.request.user.display_name+' disconnected');
 
         // remove from online list
-        delete users[socket.request.user._id];
+/*         delete users[socket.request.user._id]; */
+        users = users.filter(function( user ) {
+            return user._id !== socket.request.user._id;
+        });
         
         // update online list for everyone
-        io.sockets.emit('userlist', { online: users });
+/*         io.sockets.emit('userlist', { online: users }); */
+        emitUserlist();
     });
     
 });
