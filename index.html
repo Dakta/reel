@@ -20,7 +20,9 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 </head>
 
-<body><script type="text/x-handlebars" data-template-name="index">
+<body>
+
+<script type="text/x-handlebars" data-template-name="index">
 
 <div class="snap-drawers">
     <aside id="groups" class="sidebar scrollable snap-drawer snap-drawer-left">
@@ -87,37 +89,6 @@
 </script><!-- ends handlebars -->
 
 
-<script src="/js/snap.js"></script>
-<script type="text/javascript">
-    var snapper = new Snap({
-        element: document.getElementById('content'),
-        maxPosition: 160,
-        minPosition: -160
-    });
-
-    $('#open-left').click(function(){
-    	snapper.open('left');
-    });
-    $('#open-right').click(function(){
-    	snapper.open('right');
-    });
-
-    mediaCheck({
-      media: '(max-width: 768px)',
-      entry: function() {
-        snapper.close();
-        snapper.enable();
-      },
-      exit: function() {
-        snapper.close();
-        snapper.disable();
-      },
-      both: function() {
-        console.log('changing state');
-      }
-    });
-
-</script>
 
 <script type="text/javascript">
     // App
@@ -166,8 +137,40 @@
 */
     });
 
-    Reel.IndexController = Em.Controller.extend({
+    Reel.IndexView = Em.View.extend({
+        didInsertElement: function(){
+            var snapper = new Snap({
+                element: document.getElementById('content'),
+                maxPosition: 160,
+                minPosition: -160
+            });
+            
+            this.$('#open-left').click(function(){
+            	snapper.open('left');
+            });
+            this.$('#open-right').click(function(){
+            	snapper.open('right');
+            });
+            
+            mediaCheck({
+              media: '(max-width: 768px)',
+              entry: function() {
+                snapper.close();
+                snapper.enable();
+              },
+              exit: function() {
+                snapper.close();
+                snapper.disable();
+              },
+              both: function() {
+                console.log('changing state');
+              }
+            });
+        }
 
+    });
+
+    Reel.IndexController = Em.Controller.extend({
         /**
          * @property actions
          * @type {Object}
@@ -256,6 +259,40 @@
 
     });
 
+
+</script>
+
+<script src="/js/snap.js"></script>
+<script type="text/javascript">
+/*
+    var snapper = new Snap({
+        element: document.getElementById('content'),
+        maxPosition: 160,
+        minPosition: -160
+    });
+
+    $('#open-left').click(function(){
+    	snapper.open('left');
+    });
+    $('#open-right').click(function(){
+    	snapper.open('right');
+    });
+
+    mediaCheck({
+      media: '(max-width: 768px)',
+      entry: function() {
+        snapper.close();
+        snapper.enable();
+      },
+      exit: function() {
+        snapper.close();
+        snapper.disable();
+      },
+      both: function() {
+        console.log('changing state');
+      }
+    });
+*/
 
 </script>
 
