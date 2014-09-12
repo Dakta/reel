@@ -270,17 +270,22 @@ body {
 }
 @media only screen and (max-width: 768px) {
   /* line 252, ../../sass/style.scss */
+  #main {
+    width: 100%;
+  }
+
+  /* line 256, ../../sass/style.scss */
   #content,
   .snap-drawer {
     z-index: auto;
   }
 
-  /* line 257, ../../sass/style.scss */
+  /* line 261, ../../sass/style.scss */
   .with-drawers {
     visibility: visible;
   }
 
-  /* line 261, ../../sass/style.scss */
+  /* line 265, ../../sass/style.scss */
   #content {
     box-shadow: 0 0 6px rgba(0, 0, 0, 0.5);
   }

@@ -249,6 +249,10 @@ body {
 }
 
 @media only screen and (max-width: 768px) {
+    #main {
+        width: 100%;
+    }
+
     #content,
     .snap-drawer {
         z-index: auto;
