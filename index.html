@@ -13,6 +13,8 @@
     <script src="/js/vendor/ember/ember.js"></script>
 <!--     <script src="/js/vendor/ember-data/ember-data.min.js"></script> -->
     <script src="/js/vendor/ember-sockets/dist/ember-sockets.js"></script>
+
+    <script src="/js/vendor/marked/lib/marked.js"></script>
     
     <script src="/js/mediaCheck-min.js"></script>
     <meta charset="utf-8">
@@ -21,14 +23,15 @@
 </head>
 
 <body>
-
-<script type="text/x-handlebars" data-template-name="index">
+<script type="text/x-handlebars" data-template-name="application">
 
 <div class="snap-drawers">
     <aside id="groups" class="sidebar scrollable snap-drawer snap-drawer-left">
+    {{ outlet leftside }}
         <ul>
             <li>
                 <ul>
+                    <li>{{#link-to 'users'}}User List{{/link-to}}
                     <li>Acquaintences</li>
                     <li>Friends</li>
                     <li>Close Friends</li>
@@ -39,27 +42,7 @@
     </aside>
 
     <aside id="messages" class="sidebar scrollable snap-drawer snap-drawer-right">
-        <ul>
-            {{#each userlist}}
-            <li>
-                <h1>{{name}}</h1>
-                <ul>
-                    {{#each data}}
-                    <li>
-                        <span {{bind-attr class=":status :online"}}></span>
-                        <img class="avatar" {{bind-attr src=avatar_url}} />
-                        <span class="name">{{display_name}}</span>
-                    </li>
-                    {{/each}}
-                </ul>
-            </li>
-            {{else}}
-            <li>
-                <h1>Nobody Online...?</h1>
-            </li>
-            {{/each}}
-
-        </ul>
+    {{ outlet rightside }}
     </aside>
 </div>
 
@@ -72,230 +55,67 @@
         </header>
             
         <section id="main" class="eleven columns">
-            <ul id="chats">
-            {{#each messages}}
-                <li {{bind-attr class="unconfirmed"}}>{{display_name}}: {{message}}</li>
-            {{/each}}
-            </ul>
-            <form {{action "sendMsg" lastMsg on="submit"}}>
-                {{input valueBinding="lastMsg" type="text" autocomplete="off"}}
-                <button>Send</button>
-            </form>
+        {{ outlet page }}
+        {{ outlet }}
         </section>
         
     </div>
 </div>
 
-</script><!-- ends handlebars -->
-
-
-
-<script type="text/javascript">
-    // App
-    Reel = Em.Application.create({
-        Socket: EmberSockets.extend({
-            controllers: ['index'],
-            autoConnect: true
-        })
-    });
-    
-    // Routes
-/*
-    Reel.Router.map(function() {
-        this.resource('front', { path: '/' });
-    });
-*/
-
-    Reel.Serializable = Ember.Mixin.create({
-        serialize: function ()
-        {
-            var result = {};
-            for (var key in $.extend(true, {}, this))
-            {
-                // Skip these
-                if (key === 'isInstance' ||
-                key === 'isDestroyed' ||
-                key === 'isDestroying' ||
-                key === 'concatenatedProperties' ||
-                typeof this[key] === 'function')
-                {
-                    continue;
-                }
-                result[key] = this[key];
-            }
-            return result;
-        }
-    });
-    
-    // Message Model that we can serialize
-    Reel.Message = Ember.Object.extend(Reel.Serializable, {
-/*
-        'uid': null,
-        'unconfirmed': true, // hide to begin with, until we confirm
-        'display_name': null,
-        'message': null
-*/
-    });
-
-    Reel.IndexView = Em.View.extend({
-        didInsertElement: function(){
-            var snapper = new Snap({
-                element: document.getElementById('content'),
-                maxPosition: 160,
-                minPosition: -160
-            });
-            
-            this.$('#open-left').click(function(){
-            	snapper.open('left');
-            });
-            this.$('#open-right').click(function(){
-            	snapper.open('right');
-            });
-            
-            mediaCheck({
-              media: '(max-width: 768px)',
-              entry: function() {
-                snapper.close();
-                snapper.enable();
-              },
-              exit: function() {
-                snapper.close();
-                snapper.disable();
-              },
-              both: function() {
-                console.log('changing state');
-              }
-            });
-        }
-
-    });
-
-    Reel.IndexController = Em.Controller.extend({
-        /**
-         * @property actions
-         * @type {Object}
-         */
-        actions: {
-
-            /**
-             * @method cherryPickName
-             * @emit cherryPickName
-             * @return {void}
-             */
-            sendMsg: function(message) {
-                console.log('sendMsg', this.get('lastMsg'));
-                
-                var data = Reel.Message.create({
-                  'uid': Date.now(),
-                  'unconfirmed': true, // hide to begin with, until we confirm
-                  'display_name': this.profile.display_name,
-                  'message': message
-                });
-                
-                this.messages.pushObject(data)
-                
-                this.socket.emit('msg', data, function(response) {
-                    data.set('unconfirmed', false);
-                    console.log('response!', response);
-                });
-                
-                // clear text input
-                this.set('lastMsg', '');
-                },
-        },
-
-        /**
-         * @property sockets
-         * @type {Object}
-         */
-        sockets: {
-
-            // Update the property using a callback.
-            userlist: function(userlist) {
-                console.log('got userlist', userlist);
-                this.set('title', "well, this is wrong.");
-                this.set('userlist', userlist);
-            },
-            
-            msg: function(data) {
-                console.log('got message', data);
-                this.messages.pushObject(Reel.Message.create(data));
-            },
-
-            set_self: function(prof) {
-                console.log('got self', prof);
-                this.profile = prof;
-            },
-            
-            // When EmberSockets makes a connection to the Socket.IO server.
-            connect: function() {
-                console.log('EmberSockets has connected...');
-            },
-
-            // When EmberSockets disconnects from the Socket.IO server.
-            disconnect: function() {
-                console.log('EmberSockets has disconnected...');
-            }
-
-        },
-
-
-        /**
-         * @property userlist
-         * @type {Array}
-         */
-        userlist: [],
-        
-        /**
-         * @ property last_message
-         * @type {String}
-         */
-        lastMsg: "",
-        
-        messages: Ember.A(),
-/*         messages: Ember.Map.create(), */
-        
-        profile: {}
-
-    });
-
-
 </script>
+
+
+<!--
+    individual templates listed below
+-->
+
+<!-- messages sidebar -->
+<script type="text/x-handlebars" data-template-name="online">
+    <ul>
+    {{#each userlist}}
+        <li>
+            <h1>{{name}}</h1>
+            <ul>
+                {{#each data}}
+                <li>
+                    <span {{bind-attr class=":status :online"}}></span>
+                    <img class="avatar" {{bind-attr src=avatar_url}} />
+                    <span class="name">{{display_name}}</span>
+                </li>
+                {{/each}}
+            </ul>
+        </li>
+    {{else}}
+        <li>
+            <h1>Nobody Online...?</h1>
+        </li>
+    {{/each}}
+    </ul>
+</script>
+
+<script type="text/x-handlebars" data-template-name="messages">
+    <ul id="chats">
+    {{#each messages}}
+        <li {{bind-attr class="unconfirmed"}}>{{author.display_name}}: {{body}}</li>
+    {{/each}}
+    </ul>
+    <form {{action "sendMsg" lastMsg on="submit"}}>
+        {{input valueBinding="lastMsg" type="text" autocomplete="off"}}
+        <button>Send</button>
+    </form>
+</script>
+
+<script type="text/x-handlebars" data-template-name="users">
+    <ul>
+    {{#each}}
+        <li>{{display_name}}</li>
+    {{/each}}
+    </ul>
+</script>
+
 
 <script src="/js/snap.js"></script>
-<script type="text/javascript">
-/*
-    var snapper = new Snap({
-        element: document.getElementById('content'),
-        maxPosition: 160,
-        minPosition: -160
-    });
-
-    $('#open-left').click(function(){
-    	snapper.open('left');
-    });
-    $('#open-right').click(function(){
-    	snapper.open('right');
-    });
-
-    mediaCheck({
-      media: '(max-width: 768px)',
-      entry: function() {
-        snapper.close();
-        snapper.enable();
-      },
-      exit: function() {
-        snapper.close();
-        snapper.disable();
-      },
-      both: function() {
-        console.log('changing state');
-      }
-    });
-*/
-
-</script>
-
+<script src="/js/reel.js"></script>
 
 </body>
 </html>

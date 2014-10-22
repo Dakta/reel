@@ -1,9 +1,8 @@
 var express = require('express');
 
 // var http = require('http').Server(app);
-var config = require('./oauth.js');
-var redisConfig = require('./redis.js');
-var passport = require('passport');
+// var config = require('./oauth.js');
+// var redisConfig = require('./redis.js');
 var passportSocketIo = require("passport.socketio");
 var TwitterStrategy = require('passport-twitter').Strategy;
 var FacebookStrategy = require('passport-facebook').Strategy;
@@ -15,12 +14,15 @@ var flakeGen = function() {
     return flake().toString('base58');
 };
 
+// markdown processor
+var marked = require('marked');
+
+
 
 // connect to database
 var mongoose = require('mongoose'),
     mongoURI = process.env.MONGOLAB_URI || 'oops'; // fallback is dangerous, make failure obvious
 
-var paginator = require('mongoose-paginator');
 
 // mongoose does this async, which is nice
 mongoose.connect(mongoURI, function(err, res) {
@@ -32,188 +34,35 @@ mongoose.connect(mongoURI, function(err, res) {
 });
 
 
-// account schema
-var accountSchema = new mongoose.Schema({
-    provider: String, // currently one of 'twitter' or 'email'
-    provider_id: Number, // oauthID or email address
-    created: Date
-});
-// and model
-var Account = mongoose.model('Account', accountSchema);
 
-// profile schema
-var profileSchema = new mongoose.Schema({
-/*     uid: { type: String, default: flakeGen }, // we generate this with simpleflake, conv buffer to base58 string */
-    display_name: String, // for now, we're not picky
-    avatar_url: String,
-    accounts: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Account' }],
-    provider_profile: Object
-});
-// pagination defaults
-profileSchema.plugin(paginator, {
-    limit: 50,
-    defaultKey: '_id',
-    direction: 1
-});
-// and model
-var Profile = mongoose.model('Profile', profileSchema);
-
-
-// passport config
-// serialize and deserialize
-passport.serializeUser(function(user, done) {
-/*     console.log('serializeUser: ' + user._id) */
-    done(null, user._id);
-});
-passport.deserializeUser(function(id, done) {
-/*     console.log('deserializing '+id); */
-    
-    Profile.findById(new mongoose.Types.ObjectId(id), function(err, user){
-        console.log('deserialize', user);
-        if (!err) {
-            done(null, user);
-        } else {
-            console.log('deserialize err: '+err);
-            done(err, null);
-        }
-    });
+var fs = require('fs');
+// Bootstrap models
+fs.readdirSync(__dirname + '/app/models').forEach(function (file) {
+  if (~file.indexOf('.js')) require(__dirname + '/app/models/' + file);
+  console.log('loaded '+file);
 });
 
-// strategies
-passport.use(
-    new TwitterStrategy({
-        consumerKey: config.twitter.consumerKey,
-        consumerSecret: config.twitter.consumerSecret,
-        callbackURL: config.twitter.callbackURL
-    },
-    function (accessToken, refreshToken, profile, done) {
-        Account.findOne({ provider: 'twitter', provider_id: profile.id }, function(err, account) {
-            if (err) { console.log('Account.findOne', err); }
-            if (!err && account != null) {
-                console.log('account', account);
-                Profile.findOne({ accounts: account._id }, function(err, site_profile) {
-                    if (err) { console.log('Profile.findOne', err); }
-                    if (!err && profile != null) {
-                        console.log('found profile');
-                        done(null, site_profile); // pass site_profile back to serializeUser
-                    } else {
-                        // shit? (account with no profile) make them try again
-                        var error_msg = 'err: found account without profile; aborting';
-                        console.log(error_msg);
-                        Account.remove({ _id: account._id }, function(err) {
-                            if (err) {
-                                console.log('Account.remove', err);
-                            } else {
-                                console.log('deleted '+account.provider+' account '+account.provider_id);
-                            }
-                            done(error_msg);
-                        });
-                    }
-                });
-            } else {
-                console.log('new user');
-                // new user!
-                var account = new Account({
-                    provider: 'twitter',
-                    provider_id: profile.id,
-                    created: Date.now()
-                });
-                account.save(function(err) {
-                    if (err) {
-                        console.log('Account.save', err);
-                    } else {
-                        // make them a profile
-                        console.log("saving user ...");
-                        var site_profile = new Profile({
-                            display_name: profile.displayName,
-                            avatar_url: profile._json.profile_image_url,
-                            provider_profile: profile
-                        });
-                        site_profile.accounts.push(account._id); // attach the access account we just created to this "user account" aka profile
-                        site_profile.save(function(err) {
-                            if (err) { console.log(err); }
-                            done(null, site_profile); // pass site_profile back to serializeUser
-                        })
-                    }
-                });
-            };
-        });
-    }
-));
-passport.use(
-    new FacebookStrategy({
-        clientID: config.facebook.clientID,
-        clientSecret: config.facebook.clientSecret,
-        callbackURL: config.facebook.callbackURL
-    },
-    function (accessToken, refreshToken, profile, done) {
-        Account.findOne({ provider: 'facebook', provider_id: profile.id }, function(err, account) {
-            if (err) { console.log('Account.findOne', err); }
-            if (!err && account != null) {
-                console.log('account', account);
-                Profile.findOne({ accounts: account._id }, function(err, site_profile) {
-                    if (err) { console.log('Profile.findOne', err); }
-                    if (!err && profile != null) {
-                        console.log('found profile');
-                        done(null, site_profile); // pass site_profile back to serializeUser
-                    } else {
-                        // shit? (account with no profile) make them try again
-                        var error_msg = 'err: found account without profile; aborting';
-                        console.log(error_msg);
-                        Account.remove({ _id: account._id }, function(err) {
-                            if (err) {
-                                console.log('Account.remove', err);
-                            } else {
-                                console.log('deleted '+account.provider+' account '+account.provider_id);
-                            }
-                            done(error_msg);
-                        });
-                    }
-                });
-            } else {
-                console.log('new user');
-                // new user!
-                var account = new Account({
-                    provider: 'facebook',
-                    provider_id: profile.id,
-                    created: Date.now()
-                });
-                account.save(function(err) {
-                    if (err) {
-                        console.log('Account.save', err);
-                    } else {
-                        // make them a profile
-                        console.log("saving user ...");
-                        var site_profile = new Profile({
-                            display_name: profile.displayName,
-                            avatar_url: "http://graph.facebook.com/"+profile.id+"/picture",
-                            provider_profile: profile
-                        });
-                        site_profile.accounts.push(account._id); // attach the access account we just created to this "user account" aka profile
-                        site_profile.save(function(err) {
-                            if (err) { console.log(err); }
-                            done(null, site_profile); // pass site_profile back to serializeUser
-                        })
-                    }
-                });
-            };
-        });
-    }
-));
+var Account = mongoose.model('Account');
+var Profile = mongoose.model('Profile');
+
+
+var passport = require('passport');
+
+var config = require('./config/config');
+
+// Bootstrap passport config
+require('./config/passport')(passport, config);
 
 
 // sitewide session middleware config
 var expressSession = require("express-session");
-var redis = require('connect-redis')(expressSession);
-var redisStore = new redis(redisConfig);
+var connectRedis = require('connect-redis')(expressSession);
+
+var redisStore = new connectRedis(config.redis);
+
+
+
 var sessionMiddleware = expressSession({
-/*
-    name: "COOKIE_NAME_HERE",
-    secret: "COOKIE_SECRET_HERE",
-    store: new (require("connect-mongo")(expressSession))({
-        url: "mongodb://localhost/DATABASE_NAME_HERE"
-    })
-*/
     store: redisStore,
     secret: 'my_precious',
     cookieParser: express.cookieParser
@@ -243,6 +92,7 @@ app.configure(function() {
     
     app.use(passport.initialize());
     app.use(passport.session());
+    
     
     app.use(app.router);
     
@@ -281,7 +131,7 @@ app.get('/account', ensureAuthenticated, function(req, res) {
 
 
 app.get('/users', ensureAuthenticated, function(req, res) {
-    console.log(req.params);
+/*     console.log(req.params); */
     
     var params = {};
     
@@ -297,7 +147,7 @@ app.get('/users', ensureAuthenticated, function(req, res) {
     }
 /*     res.send(req.params); */
 
-    Profile.paginate({ direction: params.direction}, '_id')
+    Profile.paginate({ /* extra paginator options */ }, '_id')
         .limit(params.limit) // overrides default limit, if set
         .execPagination(function(err, obj) {
             /** obj = {
@@ -312,11 +162,10 @@ app.get('/users', ensureAuthenticated, function(req, res) {
 
 });
 
-
 // profile
 app.get('/users/:userid/:username?', ensureAuthenticated, function(req, res) {
 
-    console.log(req.params);
+/*     console.log(req.params); */
 
     Profile.findById(req.params.userid, function(err, profile) {
         if (err) {
@@ -324,14 +173,72 @@ app.get('/users/:userid/:username?', ensureAuthenticated, function(req, res) {
         } else {
             res.send(profile);
         }
-    })
+    });
 /*     res.sendfile('index.html'); */
 });
 
+
+app.get('/conversations', ensureAuthenticated, function(req, res) {
+/*     console.log(req.params); */
+    
+    var params = {};
+    
+    // from query string to mongoose-paginate params
+    if (req.query.hasOwnProperty('after')
+        && req.query.after != null
+    ) {
+        params.after = req.query.after;
+    } else if (req.query.hasOwnProperty('before')
+        && req.query.before != null
+    ) {
+        params.before = req.query.before;
+    }
+/*     res.send(req.params); */
+
+    Conversation.paginate({ /* extra paginator options */ }, '_id')
+        .limit(params.limit) // overrides default limit, if set
+        .execPagination(function(err, obj) {
+            /** obj = {
+                "perPage": 20, <= same as limit
+                "thisPage": 2,
+                "after": "52fb4cd4205626aceddc7127",
+                "before": "52fb4cca546de0dd61469e20",
+                "results": [{}, {}]
+            } */
+            res.send(obj);
+        });
+
+});
+
+// messages
+app.get('/conversations/:conversationid/:conversationname?', ensureAuthenticated, function(req, res) {
+
+/*     console.log(req.params); */
+
+    Conversation.findById(req.params.conversationid, function(err, conversation) {
+        if (err) {
+            console.log(err);
+        } else {
+            res.send(conversation);
+        }
+    });
+/*     res.sendfile('index.html'); */
+});
+
+
+
+//
+// TODO: Wrap this in an express Router
+//
+
+var accountRouter = express.Router();
+
+// dumb auth landing
 app.get('/auth', function(req, res) {
     res.send('<html><a href="/auth/twitter">Twitter</a> or <a href="/auth/facebook">Facebook</a> or <a href="/auth/logout">log out</a>.</html>');
 });
 
+// auth provider routes
 app.get('/auth/twitter', passport.authenticate('twitter'), function(req, res) {});
 app.get('/auth/twitter/callback', passport.authenticate('twitter', { failureRedirect: '/failed' }), function(req, res) {
     res.redirect('/');
@@ -341,6 +248,7 @@ app.get('/auth/facebook/callback', passport.authenticate('facebook', { failureRe
     res.redirect('/');
 });
 
+// logout route
 app.get('/auth/logout', ensureAuthenticated, function(req, res) {
     var name = req.user.display_name;
     console.log("LOGGIN OUT " + name);
@@ -349,33 +257,32 @@ app.get('/auth/logout', ensureAuthenticated, function(req, res) {
     req.session.notice = "You have successfully been logged out, " + name + "!";
 });
 
+app.get('/auth/delete', ensureAuthenticated, function(req, res) {
+    Profile.findById(req.user._id, function(err, profile) {
+        if (err) console.log(err);
+        if (!err && profile != null) {
+            // nuke current user (profile and all auth methods)
+            
+            profile.accounts.forEach(function(account_id) {
+                Account.findByIdAndRemove(account_id);
+            });
+            profile.remove();
+            profile.save();
+            req.logout();
+            res.redirect('/');
+            req.session.notice = "Your account has been deleted.";
+        } else {
+            // uh oh
+            res.send(err);
+        }
+    });
+});
+
 
 
 // socket.io websocket stuff
 
 // authentication middleware
-/*
-io.use(function(socket, next) {
-    sessionMiddleware(socket.request, {}, next);
-});
-*/
-
-// actual authentication
-/*
-io.use(function(socket, next) {
-    console.log(socket.request);
-    if (socket.request.session.hasOwnProperty('passport')) {
-        var userId = socket.request.session.passport.user;
-        console.log("Your User ID is", userId);
-        next();
-    } else {
-        // we have no user
-        socket.emit('error', 'Not authenticated.');
-        socket.disconnect();
-    }
-});
-*/
-
 
 // authenticate
 io.use(passportSocketIo.authorize({
@@ -384,49 +291,241 @@ io.use(passportSocketIo.authorize({
   store:       redisStore
 }));
 
+
+// redis client for pubsub
+var redis = require("redis");
+
+
 // list of online users
 var users = [];
+
+
+// message/conversation stuff
+var Message = mongoose.model('Message')
+  , Conversation = mongoose.model('Conversation')
+
+
+// make sure we have at least one conversation when people join
+Conversation.findOne({ name: "Root" }, function(err, conversation) {
+    if (err) {
+        console.log(err);
+    } else if (conversation == null) {
+        // create a default convo
+        var Root = new Conversation({
+            created: Date.now(),
+            is_public: true,
+            name: "Root",
+        });
+
+        Profile.findOne({ display_name: "Dakota Schneider" }, function(err, acct) {
+            if (err) console.log(err);
+            
+            Root.creator = acct._id;
+            Root.save(function(err, obj) {
+                if (err) console.log(err);
+            });
+        });
+    } else {
+        // pass
+        console.log('found');
+//         console.log(conversation);
+    }
+});
+
+
+/*
+    Flow:
+    - Connect
+        - Subscribe to notifications, status, etc. (default/meta)
+        - Subscribe to default conversation
+        - Push the above
+        - Push last x items from conversation on subscribe
+    - Subscribe
+        - sub.subscribe('channel/'+name)
+        - save subscribe state?
+        - do something with notifications?
+    - Unsubscribe
+    - Conversation list
+    - subscribe to public conversation
+    - Create New conversation
+        - create with name and options
+        - subscribe
+    - leave conversation
+    - modify conversation (currently only creator)
+*/
+
+
 
 // connect
 io.on('connection', function(socket){
     console.log('a user connected');
 
     // add user to connected list
-/*     users[socket.request.user._id] = socket.request.user; */
-    users.push(socket.request.user);
+    users[socket.request.user._id] = socket.request.user;
+//     users.push(socket.request.user);
+
+    var pub = redis.createClient(config.redis.port, config.redis.host),
+        sub = redis.createClient(config.redis.port, config.redis.host);
+        
+    pub.auth(config.redis.password, function() {
+        console.log('redis pub connected'); 
+    });
+    sub.auth(config.redis.password, function() {
+        console.log('redis sub connected'); 
+    });
+    
+    /*
+     Use Redis' 'sub' (subscriber) client to listen to any message from Redis to server.
+     When a message arrives, send it back to browser using socket.io
+     */
+    sub.on('message', function (channel, message) {
+        console.log('redis sub got message');
+        var obj = JSON.parse(message);
+        
+        if (obj.socket_id != socket.id) {
+            // sanitize before we send out
+            delete obj.socket_id;
+            socket.emit(channel, obj);
+        }
+    });
+
+    // these should map to a socket.join() call
+    // so data pipes out from a client through a socket channel,
+    // through a redis channel to redis, then back through a redis channel, socket channel, etc.
+    sub.subscribe('msg');
+
+
+    // provide a backlog of messages on join
+    Message.paginate({ /* extra paginator options */ }, 'created')
+        .limit(10) // overrides default limit, if set
+        .populate('author')
+        .exec(function(err, obj) {
+            for (var i=obj.length-1; i>-1; i--) {
+                socket.emit('msg', obj[i]);
+            }
+        });
+
     
     // tell our user their own name (yeah)
     socket.emit('set_self', socket.request.user);
     
     // update online list for everyone
     function emitUserlist() {
-        io.sockets.emit('userlist', [ { name: 'Online', data: users} ]);
+        // flatten it properly; ugh
+        var userarray = [];
+        for (var u in users) {
+            if (users.hasOwnProperty(u)) userarray.push(users[u]);
+        }
+        // emit to all;
+        // this needs a redis channel
+        io.sockets.emit('userlist', [ { name: 'Online', data: userarray} ]);
     }
     emitUserlist();
+    
+    
+    // doesn't work yet
+    function emitConvoList() {
+        // get the ids of conversations (limit 10) sorted by most recent message
+        Message.aggregate([
+            { $sort : { date: -1 } },
+            { $group : { _id : "$conversation" } },
+            { $limit : 10 }
+        ],
+        function(err, obj) {
+            // console.log(obj);
+        });
+
+    }
+//     emitConvoList();
     
     socket.on('msg', function(data, callback) {
         // make sure we've set our real name
         // don't trust the incoming display_name, it's just there for convenience on the client-side
         data.display_name = socket.request.user.display_name;
         delete data.unconfirmed; // this should really be removed before it gets to the server, since it's client-specific...
+
+
+        // add in socket id so we can emit without dupes on the source connection
+        var redisData = data;
+        redisData.socket_id = socket.id; // we shouldn't expose this
+        // publish on redis -> other instances of server pick it up and broadcast it to clients
+        pub.publish('msg', JSON.stringify(redisData));
+
+        // new message to stick in archive        
+        message = new Message({
+            author: socket.request.user._id,
+            created: Date.now(),
+            body: data.body,
+            body_html: data.body_html,
+        });
         
-        socket.broadcast.emit('msg', data);
-        console.log("user " + socket.request.user.display_name + " sent message: " + data.message);
+        // try and find the conversation it goes to
+        // if none, leave it null?
+        // Should we have a "misc" channel of messages with null conversation? that could be interesting.
+        Conversation.findById(message.conversation_id, function(err, conversation) {
+            if (err) {
+                console.log(err);
+                // return error response?
+/*
+            } else if (conversation == null) {
+                // no such convo...
+                console.log('no such conversation '+message.conversation_id);
+                
+                message.conversation = '5445f1dbabddf8fdd663a3d2';
+                
+                message.save(function(err, message_obj) {
+                    if (err) {
+                        console.log(err);
+                    } else {
+                        // push onto convo messages list
+                        // conversation.messages.push(message._id);
+                        // publish on redis
+                        console.log(conversation);
+
+                        
+                    }
+                });
+*/
+            } else {
+                console.log('conversation id');
+                console.log(conversation);
+                
+                message.save(function(err, message_obj) {
+                    if (err) {
+                        console.log(err);
+                    } else {
+                        // if we have a convo to update
+                        if (conversation != null) {
+                            // push onto convo messages list
+                            conversation.messages.push(message._id);
+                            conversation.save();
+                        }
+                        // otherwise nothing to do
+                    }
+                });
+            }
+        })
         
-/*         setTimeout(callback(data), 2000); */
+//         console.log("user " + socket.request.user.display_name + " sent message: " + data.message);
+        
         if (callback !== undefined) {
             callback(data);
         }
     });
-    
+        
     socket.on('disconnect', function() {
         console.log(socket.request.user.display_name+' disconnected');
+        
+        sub.quit();
+        pub.quit();
 
         // remove from online list
-/*         delete users[socket.request.user._id]; */
+        delete users[socket.request.user._id];
+/*
         users = users.filter(function( user ) {
             return user._id !== socket.request.user._id;
         });
+*/
         
         // update online list for everyone
 /*         io.sockets.emit('userlist', { online: users }); */
