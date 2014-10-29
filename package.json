@@ -4,7 +4,7 @@
   "description": "A sample Node.js app using Express 4",
   "main": "index.js",
   "scripts": {
-    "start": "node index.js"
+    "start": "NODE_PATH=./config:./app/controllers ./node_modules/.bin/nodemon index.js"
   },
   "dependencies": {
     "connect-redis": "^2.1.0",
@@ -12,6 +12,7 @@
     "ember-sockets": "^0.6.10",
     "express": "~3.4.x",
     "express-session": "^1.7.6",
+    "forever": "^0.11.1",
     "marked": "^0.3.2",
     "mongodb": "^1.4.9",
     "mongoose": "^3.8.15",
@@ -42,5 +43,8 @@
   "contributors": [
     "Zeke Sikelianos <zeke@sikelianos.com> (http://zeke.sikelianos.com)"
   ],
-  "license": "MIT"
+  "license": "MIT",
+  "devDependencies": {
+    "nodemon": "^1.2.1"
+  }
 }

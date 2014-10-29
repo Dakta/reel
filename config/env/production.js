@@ -7,7 +7,7 @@ var url = require('url')
   , redisURL = url.parse(process.env.REDISTOGO_URL)
 
 module.exports = {
-  db: process.env.MONGOHQ_URL,
+  db: process.env.MONGOLAB_URI,
   facebook: {
     clientID: process.env.FACEBOOK_CLIENTID,
     clientSecret: process.env.FACEBOOK_CLIENTSECRET,
