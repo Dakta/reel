@@ -4,7 +4,7 @@
   "description": "A sample Node.js app using Express 4",
   "main": "index.js",
   "scripts": {
-    "start": "NODE_PATH=./config:./app/controllers ./node_modules/.bin/nodemon index.js"
+    "start": "./node_modules/.bin/nodemon index.js"
   },
   "dependencies": {
     "connect-redis": "^2.1.0",

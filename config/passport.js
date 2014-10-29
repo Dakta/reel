@@ -40,14 +40,14 @@ module.exports = function (passport, config) {
     // passport config
     // serialize and deserialize
     passport.serializeUser(function(user, done) {
-    /*     console.log('serializeUser: ' + user._id) */
+        console.log('serializeUser: ' + user._id);
         return done(null, user._id);
     });
     passport.deserializeUser(function(id, done) {
-    /*     console.log('deserializing '+id); */
+        console.log('deserializing '+id);
         
         Profile.findById(new mongoose.Types.ObjectId(id), function(err, user){
-    /*         console.log('deserialize', user); */
+            console.log('deserialize', user);
             if (!err) {
                 return done(null, user);
             } else {
