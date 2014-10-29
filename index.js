@@ -4,34 +4,47 @@ var express = require('express');
 // var config = require('./oauth.js');
 // var redisConfig = require('./redis.js');
 var passportSocketIo = require("passport.socketio");
-var TwitterStrategy = require('passport-twitter').Strategy;
-var FacebookStrategy = require('passport-facebook').Strategy;
+// var TwitterStrategy = require('passport-twitter').Strategy;
+// var FacebookStrategy = require('passport-facebook').Strategy;
 
+
+/*
 // simpleflake for UID generation (profiles, content)
 var flake = require('simpleflake');
 // generation util to produce 
 var flakeGen = function() {
     return flake().toString('base58');
 };
+*/
+
 
 // markdown processor
 var marked = require('marked');
 
 
+var config = require('config');
+
 
 // connect to database
-var mongoose = require('mongoose'),
-    mongoURI = process.env.MONGOLAB_URI || 'oops'; // fallback is dangerous, make failure obvious
+var mongoose = require('mongoose');
 
+var connect = function() {
+    // mongoose does this async, which is nice
+    var options = { server: { socketOptions: { keepAlive: 1 } } };
+    mongoose.connect(config.db, options, function(err, res) {
+        if (err) {
+            console.log('ERROR connecting to MongoDB.');
+            console.log(err);
+        } else {
+            console.log ('Successfully connected to MongoDB.');
+        }
+    });
+};
+connect();
 
-// mongoose does this async, which is nice
-mongoose.connect(mongoURI, function(err, res) {
-    if (err) {
-        console.log ('ERROR connecting to: ' + mongoURI + '. ' + err);
-    } else {
-        console.log ('Succeeded connected to: ' + mongoURI);
-    }
-});
+// log errors, reconnect on drop
+mongoose.connection.on('error', console.log);
+mongoose.connection.on('disconnected', connect);
 
 
 
@@ -42,13 +55,13 @@ fs.readdirSync(__dirname + '/app/models').forEach(function (file) {
   console.log('loaded '+file);
 });
 
+
 var Account = mongoose.model('Account');
 var Profile = mongoose.model('Profile');
 
 
 var passport = require('passport');
 
-var config = require('./config/config');
 
 // Bootstrap passport config
 require('./config/passport')(passport, config);
@@ -72,6 +85,7 @@ var sessionMiddleware = expressSession({
 // test authentication
 function ensureAuthenticated(req, res, next) {
     if (req.isAuthenticated()) { return next(); }
+    console.log('unauthenticated');
     
     res.redirect('/auth')
 }
@@ -92,6 +106,23 @@ app.configure(function() {
     
     app.use(passport.initialize());
     app.use(passport.session());
+    
+    
+    // we're going to do something bad here
+    app.use(function (req, res, next) {
+        // URL file extension extracting regex
+        var extension = /^(.*?)(?:\.([^\.\/]+))?$/;
+        // this is the bad part
+        if (extension.exec(req.url)[2] == 'json') {
+            // rewrite the URL so it routes
+            req.url = req.url.replace(extension, '$1');
+            // hijack render to output JSON
+            res.render = function(viewName, model) {
+                this.json(model);
+           };
+        }
+        next();
+    });
     
     
     app.use(app.router);
@@ -123,7 +154,7 @@ app.get('/account', ensureAuthenticated, function(req, res) {
         if (err) {
             console.log('Profile.findById', err);
         } else {
-            res.send(user);
+            res.render('fake name', user);
         };
     });
 });

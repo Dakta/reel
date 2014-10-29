@@ -14,6 +14,8 @@ var Profile = mongoose.model('Profile');
  * Expose
  */
 
+console.log(config.twitter.callbackURL);
+
 module.exports = new TwitterStrategy({
         consumerKey: config.twitter.consumerKey,
         consumerSecret: config.twitter.consumerSecret,

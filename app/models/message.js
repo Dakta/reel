@@ -11,15 +11,16 @@ var mongoose = require('mongoose')
 var messageSchema = new mongoose.Schema({
     author: { type: mongoose.Schema.Types.ObjectId, ref: 'Profile' },
     conversation: { type: mongoose.Schema.Types.ObjectId, ref: 'Conversation' },
-    created: Date,
-    body: String,
-    body_html: String,
+    created: Date, // when we receive and process the message
+    client_created: Date, // when the client claims to have generated the messaage
+    body: String, // raw body passed to server
+    body_html: String, // parsed and processed body
 })
 
 // pagination defaults
 messageSchema.plugin(paginator, {
     limit: 50,
-    defaultKey: '_id',
+    defaultKey: 'created', // typically sort by most recent
     direction: -1
 })
 

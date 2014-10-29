@@ -134,7 +134,7 @@ Reel.ChatController = Em.Controller.extend({
             console.log('sendMsg', this.get('lastMsg'));
             
             var data = Reel.Message.create({
-              'uid': Date.now(),
+              'client_created': Date.now(),
               'unconfirmed': true, // hide to begin with, until we confirm
               'author': this.profile,
               'body': message,
