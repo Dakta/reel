@@ -22,7 +22,7 @@ var flakeGen = function() {
 var marked = require('marked');
 
 
-var config = require('config');
+var config = require('./config/config');
 
 
 // connect to database
